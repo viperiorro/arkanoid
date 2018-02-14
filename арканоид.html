@@ -1,0 +1,319 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>Gamedev Canvas Workshop</title>
+    <style>
+    	* { padding: 0; margin: 0; }
+    	canvas { 
+    		background: #bbb;
+    		display: block;
+    		margin: 0 auto;
+		cursor: none; }
+    </style>
+</head>
+<body>
+
+<canvas id="myCanvas" width="480" height="320"></canvas>
+
+<script>
+	var canvas = document.getElementById("myCanvas");
+	var ctx = canvas.getContext("2d");
+
+	//переменные для кирпичиков
+	var 
+		brickRowCount = 3;
+		brickColumnCount = 5;
+		brickWidth = 75;
+		brickHeight = 20;
+		brickPadding = 10;
+		brickOffsetTop = 30;
+		brickOffsetLeft = 30;
+	
+	//параметры платформы
+	var paddleHeight = 10;
+	var paddleWidth = 75;
+	var paddleX = (canvas.width-paddleWidth)/2;
+	
+	//переменные для отслеживания нажатий
+	var rightPressed = false;
+	var leftPressed = false;
+
+	//мячик
+	var ballRadius = 10;
+	var x = canvas.width/2;
+	var y = canvas.height-30;
+
+	//скорость мячика
+	var dx = 2;
+	var dy = -2;
+
+	//жизни
+	var lives = 3;
+
+	//счет
+	var score = 0;
+
+	var rndColor = 60;
+	
+	var colors = ["#000000",
+					"#00000f",
+					"#0000f0",
+					"#0000ff",
+					"#000f00",
+					"#000f0f",
+					"#000ff0",
+					"#000fff",
+					"#00f000",
+					"#00f00f",
+					"#00f0f0",
+					"#00f0ff",
+					"#00ff00",
+					"#00ff0f",
+					"#00fff0",
+					"#00ffff",
+					"#0f0000",
+					"#0f000f",
+					"#0f00f0",
+					"#0f00ff",
+					"#0f0f00",
+					"#0f0f0f",
+					"#0f0ff0",
+					"#0f0fff",
+					"#0ff000",
+					"#0ff00f",
+					"#0ff0f0",
+					"#0ff0ff",
+					"#0fff00",
+					"#0fff0f",
+					"#0ffff0",
+					"#0fffff",
+					"#f0000f",
+					"#f000f0",
+					"#f000ff",
+					"#f00f00",
+					"#f00f0f",
+					"#f00ff0",
+					"#f00fff",
+					"#f0f000",
+					"#f0f00f",
+					"#f0f0f0",
+					"#f0f0ff",
+					"#f0ff00",
+					"#f0ff0f",
+					"#f0fff0",
+					"#f0ffff",
+					"#ff0000",
+					"#ff000f",
+					"#ff00f0",
+					"#ff00ff",
+					"#ff0f00",
+					"#ff0f0f",
+					"#ff0ff0",
+					"#ff0fff",
+					"#fff000",
+					"#fff00f",
+					"#fff0f0",
+					"#fff0ff",
+					"#ffff00",
+					"#ffff0f",
+					"#fffff0",
+					"#ffffff"];
+
+	function randomInteger(min, max) {
+    	var rand = min + Math.random() * (max + 1 - min);
+    	rand = Math.floor(rand);
+    	return rand;
+  }
+
+	var bricks = [];
+	for(c=0; c<brickColumnCount; c++){
+		bricks[c] = [];
+		for(r=0; r<brickRowCount; r++){
+			bricks[c][r] = { x: 0, y: 0, status: 1, color: colors[randomInteger(0, 62)]}; 
+			bricks[c][r].x = (c*(brickWidth+brickPadding))+brickOffsetLeft;
+			bricks[c][r].y = (r*(brickHeight+brickPadding))+brickOffsetTop;
+		}
+	}
+
+	function drawLives(){
+		ctx.font = "16px Arial";
+		ctx.fillStyle = "#ff0000";
+		ctx.fillText("Lives: " + lives, 416, 20);
+	}
+
+	function drawScore(){
+		ctx.font = "16px Arial";
+		ctx.fillStyle = "#0095DD";
+		ctx.fillText("Score: " + score, 8, 20);
+	}
+
+	function drawHighScore() {
+		ctx.font = "16px Arial";
+		var highscore = document.cookie.split("=")[1];
+		ctx.fillStyle = "0095DD";
+		ctx.fillText("HScore: " + highscore, 80, 20);
+	}
+	
+	function drawPaddle(rndColor){
+		ctx.beginPath();
+		ctx.rect( paddleX, canvas.height-20, paddleWidth, paddleHeight);
+		ctx.fillStyle = colors[rndColor];
+		ctx.fill();
+		ctx.closePath();
+	}
+	
+	function drawBricks (){
+		for(r=0; r < brickRowCount; r++){
+			for(c=0; c < brickColumnCount; c++){
+				ctx.beginPath();
+				if(bricks[c][r].status == 1){
+					ctx.rect(bricks[c][r].x, bricks[c][r].y, brickWidth, brickHeight);
+				}
+				ctx.fillStyle = bricks[c][r].color;
+				ctx.fill();
+				ctx.closePath();
+			}
+				
+		}
+	}
+
+	function collisionDetection(){
+		for(r=0; r < brickRowCount; r++){
+			for(c=0; c < brickColumnCount; c++){
+				var b = bricks[c][r];
+				if(b.status == 1) {
+					if(x > b.x && x < b.x+brickWidth+ballRadius && y > b.y && y < b.y+brickHeight+ballRadius){
+						dy = -dy;
+						b.status = 0;
+						score++;
+
+						if(score == brickRowCount*brickColumnCount){
+							alert("YOU WIN, CONGRATULATIONS!\nYour score: " + score + "\nHighscore: " + document.cookie.split("=")[1]);
+							var hscore = document.cookie.split("=")[1];
+							if (hscore === undefined) hscore=0;
+
+							if(score >hscore){
+								document.cookie = "highscore="+score;
+							}
+
+							document.location.reload();
+						}
+					}
+				}
+			}
+		}
+	}
+	
+	function keyDownHandler(e){
+		if(e.keyCode == 39) {
+			rightPressed = true;
+		}
+		else if(e.keyCode == 37){
+			leftPressed = true;
+		}
+	}
+	
+	function keyUpHandler(e){
+		if(e.keyCode == 39) {
+			rightPressed = false;
+		}
+		else if(e.keyCode == 37){
+			leftPressed = false;
+		}
+	}
+
+	function mouseMoveHandler(e){
+		var relativeX = e.clientX - canvas.offsetLeft;
+		if(relativeX > 0 && relativeX < canvas.width){
+			paddleX = relativeX - paddleWidth/2;
+		}
+	}
+	
+	function draw() {
+	    ctx.clearRect(0, 0, canvas.width, canvas.height);
+		drawBricks();
+		drawPaddle(rndColor);
+		drawScore();
+		drawLives();
+		drawHighScore();
+		
+		
+		if(rightPressed){
+			paddleX += 7;
+		}
+		else if(leftPressed){
+			paddleX -= 7;
+		}
+		
+		if( paddleX <= -7){
+			paddleX += 7;
+		}
+		if (paddleX >= canvas.width-paddleWidth+7){
+			paddleX -= 7;
+		}
+		
+
+		ctx.beginPath();
+		ctx.arc(x, y, ballRadius, 0, Math.PI*2);
+		ctx.fillStyle="red";
+		ctx.fill();
+		ctx.closePath();
+
+		collisionDetection();
+
+	    y += dy;
+		x += dx;
+		
+		if(y + dy < ballRadius){
+			dy = -dy;
+		}
+		if(y + dy > canvas.height-ballRadius-paddleHeight*2){
+			if(x > paddleX && x < paddleX + paddleWidth){
+				dy = -dy
+				rndColor = randomInteger(0, 62);
+			}
+			else {
+				lives--;
+				if(!lives){
+					alert("GAME OVER!\nYour score: " + score + "\nHighscore: " + document.cookie.split("=")[1]);
+
+					var hscore = document.cookie.split("=")[1];
+							if (hscore === undefined) hscore=0;
+
+							if(score >hscore){
+								document.cookie = "highscore="+score;
+							}
+
+					document.location.reload();
+				}
+				else {
+					x = canvas.width/2;
+					y = canvas.height-30;
+					dx = 2;
+					dy = -2;
+					paddleX = (canvas.width-paddleWidth)/2;
+				}
+			}
+		}
+
+		//левая и правая стенка канваса
+	  	if(x + dx > canvas.width-ballRadius || x + dx < ballRadius) {
+	    	dx = -dx;
+		}
+
+		
+	}
+
+document.addEventListener("keydown", keyDownHandler, false);
+document.addEventListener("keyup", keyUpHandler, false); 
+
+document.addEventListener("mousemove", mouseMoveHandler, false);
+	
+setInterval(draw, 10);
+
+
+</script>
+
+</body>
+</html>
